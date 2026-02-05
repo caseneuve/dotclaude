@@ -12,11 +12,13 @@ claude/
     ├── code-review/               # Pre-commit code review
     │   ├── SKILL.md
     │   └── detect-and-lint.sh
-    └── pk-tmux/                   # Tmux session management
-        ├── SKILL.md
-        ├── tmux-create.sh
-        ├── tmux-status.sh
-        └── tmux-wait.sh
+    ├── pk-tmux/                   # Tmux session management
+    │   ├── SKILL.md
+    │   ├── tmux-create.sh
+    │   ├── tmux-status.sh
+    │   └── tmux-wait.sh
+    └── project-init/              # Generate CLAUDE.md for new projects
+        └── SKILL.md
 ```
 
 ## Installation
@@ -38,9 +40,10 @@ The script:
 
 ## Skills
 
-| Skill       | Purpose                                                |
-|-------------|--------------------------------------------------------|
-| code-review | Systematic review of uncommitted changes before commit |
-| pk-tmux     | Background tasks and persistent terminal sessions      |
+| Skill        | Purpose                                                |
+|--------------|--------------------------------------------------------|
+| code-review  | Systematic review of uncommitted changes before commit |
+| pk-tmux      | Background tasks and persistent terminal sessions      |
+| project-init | Generate CLAUDE.md for a new project                   |
 
 See [claude/skills/README.md](claude/skills/README.md) for details.
