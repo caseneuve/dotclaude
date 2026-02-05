@@ -67,3 +67,4 @@ Destructive operations (delete, cleanup, purge) require:
 | [code-review](skills/code-review/SKILL.md)   | `/code-review`, `/CR` | Review uncommitted changes before commit |
 | [pk-tmux](skills/pk-tmux/SKILL.md)           | `/tmux`               | Background tasks and persistent sessions |
 | [project-init](skills/project-init/SKILL.md) | `/init`               | Generate CLAUDE.md for a new project     |
+| [journal](skills/journal/SKILL.md)           | `/post-mortem`        | Document mistakes and learnings          |
