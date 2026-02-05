@@ -33,6 +33,20 @@ Output includes:
 - Whether each window is busy `[RUNNING]` or idle (at shell)
 - Quick command templates for common operations
 
+## Create Session
+
+**Use this to ensure a session exists** (creates if missing, no-op if exists):
+```bash
+~/.claude/skills/pk-tmux/tmux-create.sh [project-name] [project-cwd]
+# Or with defaults (uses current dir):
+~/.claude/skills/pk-tmux/tmux-create.sh
+```
+
+Output includes:
+- Whether session was created or already existed
+- Socket path and session name
+- Attach command
+
 ## Session Naming Convention
 
 - **Socket path**: `/tmp/claude-<project>.sock` (add hash/number suffix if collision)
@@ -122,17 +136,16 @@ Before running any command, always:
 2. Immediately report that task is running in background
 3. Tell user how to check on it later
 
-### 3. Polling for Completion
+### 3. Wait for Completion
 ```bash
-# Loop until shell prompt returns (command finished)
-while true; do
-  cmd=$(tmux -S /tmp/claude-<project>.sock display-message -t <project>:<window> -p "#{pane_current_command}")
-  if [[ "$cmd" == "bash" || "$cmd" == "zsh" || "$cmd" == "fish" || "$cmd" == "sh" ]]; then
-    echo "Command finished"
-    break
-  fi
-  sleep 1
-done
+# Wait for command to finish (blocking)
+~/.claude/skills/pk-tmux/tmux-wait.sh <project> <window>
+
+# Wait and capture last 50 lines of output
+~/.claude/skills/pk-tmux/tmux-wait.sh <project> <window> 50
+
+# Run in background (non-blocking)
+~/.claude/skills/pk-tmux/tmux-wait.sh <project> <window> 50 &
 ```
 
 ## User Communication
