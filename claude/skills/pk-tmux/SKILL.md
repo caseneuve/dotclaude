@@ -8,11 +8,35 @@ triggers:
   - background task
   - persistent session
   - terminal session
+allowedPrompts:
+  - tool: Bash
+    prompt: run tmux helper scripts (tmux-status.sh, tmux-create.sh, tmux-wait.sh)
+  - tool: Bash
+    prompt: send commands to tmux session
+  - tool: Bash
+    prompt: capture tmux pane output
 ---
 
 # pk-tmux - Session Management Skill
 
 Use this skill when the user wants to run commands in tmux sessions, manage background tasks, or work with persistent terminal sessions.
+
+## ⚠️ CRITICAL: USER ATTACHMENT FIRST
+
+**ALWAYS follow this protocol before running ANY commands in tmux:**
+
+1. **Create/check session** using `~/.claude/skills/pk-tmux/tmux-create.sh`
+2. **Show the attach command** to the user:
+   ```
+   To attach to this session:
+     tmux -S /tmp/claude-<project>.sock attach -t <project>
+   ```
+3. **WAIT for user confirmation** before sending any commands
+4. Only proceed after user says they're ready (e.g., "go ahead", "ready", "attached")
+
+**Skip waiting ONLY if** the user explicitly says "run it", "just do it", "don't wait", or similar.
+
+---
 
 ## Overview
 
@@ -116,12 +140,16 @@ tmux -S /tmp/claude-<project>.sock kill-session -t <project>
 
 ## Workflow
 
-### 1. Initialize Session
-Before running any command, always:
-1. Determine project name from CWD basename
-2. Check if session exists
-3. If not, create it
-4. Report connection info to user
+### 1. Initialize Session (MUST DO FIRST)
+```bash
+# This is pre-authorized - run without asking permission
+~/.claude/skills/pk-tmux/tmux-create.sh
+```
+
+Then:
+1. Show the attach command from the output to the user
+2. **WAIT for user confirmation** (see CRITICAL section above)
+3. Only proceed after user is ready
 
 ### 2. Running Tasks
 
@@ -150,14 +178,7 @@ Before running any command, always:
 
 ## User Communication
 
-**ALWAYS tell the user how to connect:**
-```
-To connect to this session:
-  tmux -S /tmp/claude-<project>.sock attach -t <project>
-
-To attach to specific window:
-  tmux -S /tmp/claude-<project>.sock attach -t <project>:<window-name>
-```
+See **⚠️ CRITICAL: USER ATTACHMENT FIRST** at the top of this document.
 
 ## Questions to Ask if Unclear
 
