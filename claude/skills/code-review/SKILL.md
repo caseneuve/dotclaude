@@ -65,15 +65,15 @@ This script automatically:
 
 **Supported tools by language:**
 
-| Language | Linters/Formatters | Type Checkers | Tests | Security |
-|----------|-------------------|---------------|-------|----------|
-| **Node/JS/TS** | ESLint, Prettier, Biome | TypeScript | npm test | - |
-| **Python** | Ruff, Black, isort, Flake8, Pylint | MyPy, Pyright | Pytest, unittest | Bandit |
-| **Clojure** | clj-kondo, cljfmt, Eastwood | - | clj -M:test, lein test, bb test | - |
-| **Rust** | Clippy, rustfmt | (built-in) | cargo test | cargo-audit |
-| **Go** | go vet, gofmt, staticcheck, golangci-lint | (built-in) | go test | govulncheck |
-| **Ruby** | RuboCop | - | RSpec, Minitest | Brakeman |
-| **Elixir** | mix format, Credo | Dialyzer | mix test | Sobelow |
+| Language       | Linters/Formatters                        | Type Checkers | Tests                           | Security    |
+|----------------|-------------------------------------------|---------------|---------------------------------|-------------|
+| **Node/JS/TS** | ESLint, Prettier, Biome                   | TypeScript    | npm test                        | -           |
+| **Python**     | Ruff, Black, isort, Flake8, Pylint        | MyPy, Pyright | Pytest, unittest                | Bandit      |
+| **Clojure**    | clj-kondo, cljfmt, Eastwood               | -             | clj -M:test, lein test, bb test | -           |
+| **Rust**       | Clippy, rustfmt                           | (built-in)    | cargo test                      | cargo-audit |
+| **Go**         | go vet, gofmt, staticcheck, golangci-lint | (built-in)    | go test                         | govulncheck |
+| **Ruby**       | RuboCop                                   | -             | RSpec, Minitest                 | Brakeman    |
+| **Elixir**     | mix format, Credo                         | Dialyzer      | mix test                        | Sobelow     |
 
 **Also checks:** Makefile targets (lint, test, check), pre-commit hooks, EditorConfig
 
@@ -284,3 +284,128 @@ User: review the diff against main
 3. **Be Constructive**: Every criticism should include a suggestion
 4. **Acknowledge Good Work**: Point out well-written code to reinforce patterns
 5. **Prioritize**: Critical/security issues first, style nitpicks last
+
+---
+
+## Parallel Team Mode
+
+When the environment variable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is set, the code-review skill parallelizes Phase 2 (automated checks) and Phase 3 (manual review) across a team of agents. If the variable is unset, the existing sequential flow is used unchanged.
+
+### Team Structure
+
+```
+Phase 1 (Lead)          Phase 2 + 3 (Team)            Assembly (Lead)
+───────────────    ──────────────────────────      ─────────────────────
+Context Gathering  ┌─ linter (Bash)                Merge findings
+  - git diff       │    detect-and-lint.sh         Deduplicate
+  - detect lang    ├─ reviewer-code (Explore)      Write summary
+  - read docs      │    A,B,D,F,G,H,I              Compile output
+  - sample code    └─ reviewer-docs-sec (Explore)
+                        C,C.1,E,J
+```
+
+| Agent                    | Type    | Sections            | Focus                                 |
+|--------------------------|---------|---------------------|---------------------------------------|
+| `linter`                 | Bash    | Phase 2             | Automated tooling: lint, format, test |
+| `reviewer-code`          | Explore | A, B, D, F, G, H, I | Code quality, patterns, tests, perf   |
+| `reviewer-docs-security` | Explore | C, C.1, E, J        | Docs, tracking, security, API design  |
+
+### Workflow
+
+**1. Lead completes Phase 1 (context gathering) as normal.**
+
+Collect the full diff, detect languages, read project docs, sample existing code patterns. This context is required by all agents and cannot be parallelized.
+
+**2. Lead creates team and spawns agents in parallel.**
+
+```
+TeamCreate: team_name="code-review"
+```
+
+Spawn all three agents in a **single message** with three parallel `Task` calls. Each task description embeds the full Phase 1 context (diff, language, project docs) so agents review the same snapshot.
+
+**Agent: `linter` (Bash)**
+
+```
+Task:
+  name: "linter"
+  subagent_type: Bash
+  team_name: "code-review"
+  prompt: |
+    Run the automated checks for this project:
+      ~/.claude/skills/code-review/detect-and-lint.sh {project-dir}
+    Report the full output. Include pass/fail status for each tool.
+```
+
+**Agent: `reviewer-code` (Explore)**
+
+```
+Task:
+  name: "reviewer-code"
+  subagent_type: Explore
+  team_name: "code-review"
+  prompt: |
+    You are a code reviewer. Review the following diff against checklist
+    sections A (Language Best Practices), B (Engineering Principles),
+    D (Test Quality), F (Error Handling), G (Consistency),
+    H (Performance), and I (Complexity Metrics).
+
+    ## Project context
+    {Phase 1 context: language, project docs, code patterns}
+
+    ## Diff
+    {full git diff output}
+
+    For each finding, report: file, line, severity (critical/important/minor),
+    category, issue description, suggested fix.
+    Also note positive observations.
+```
+
+**Agent: `reviewer-docs-security` (Explore)**
+
+```
+Task:
+  name: "reviewer-docs-security"
+  subagent_type: Explore
+  team_name: "code-review"
+  prompt: |
+    You are a documentation and security reviewer. Review the following diff
+    against checklist sections C (Documentation Quality),
+    C.1 (Documentation & Tracking Updates Required), E (Security),
+    and J (API Design).
+
+    ## Project context
+    {Phase 1 context: language, project docs, code patterns}
+
+    ## Diff
+    {full git diff output}
+
+    For each finding, report: file, line, severity (critical/important/minor),
+    category, issue description, suggested fix.
+    List any documentation or tracking updates required.
+```
+
+**3. Agents work independently and report findings.**
+
+Each agent reviews its assigned sections and sends results back to the lead. The lead waits for all three agents to complete.
+
+**4. Lead assembles the final review.**
+
+Merge all agent outputs into the standard **Output Format**:
+- Combine automated check results from `linter`
+- Merge findings from both reviewers, deduplicating any overlapping items
+- Compile positive observations from all agents
+- Fill in all Output Format sections (Summary, Findings, Test Coverage, Security, Documentation & Tracking, Recommendations)
+
+**5. Lead shuts down the team.**
+
+```
+SendMessage: type="shutdown_request" to each agent
+TeamDelete
+```
+
+Present the final merged review to the user.
+
+### Fallback
+
+If `TeamCreate` fails or any agent errors out, the lead falls back to the sequential flow (Phase 2 then Phase 3) and completes the review itself. No user intervention required.
